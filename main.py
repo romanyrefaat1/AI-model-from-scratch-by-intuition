@@ -20001,6 +20001,15 @@ dataset = [
     "The big dolphins hide by the river",
 ]
 
+import random
+import numpy as np
+import math
+
+DIMS = 10  # the knob: try 2, 10, 50
+
+def get_random_position(dims=DIMS):
+    return [random.uniform(-1, 1) for _ in range(dims)]
+
 weights = []
 
 # [[0, 0], [1, 1], [2, 2], [3, 3]]
@@ -20015,6 +20024,7 @@ data = []
 
 sentence_index = 0
 
+# save words to data
 for sentence in dataset:
     i = 0
     words = sentence.lower().split()
@@ -20031,12 +20041,11 @@ for sentence in dataset:
             appended_data = {
                 "word": word,
                 "connections": [],
-                "position": [[sentence_index, i]]  # Store positions as a list of occurrences
+                "position": get_random_position()  # Map positions
             }
             data.append(appended_data)
         else:
             appended_data = existing_entry
-            appended_data["position"].append([sentence_index, i])  # Append new occurrence position
 
         j = 0
         for w_map in words:
@@ -20061,8 +20070,22 @@ for sentence in dataset:
     print(f"sentence finished: {sentence_index}")
     sentence_index += 1
 
-print("DATA: ", data)
+# nudge position based on connections
+set_of_words = {}
 
+for word in data:
+    j_connections = 0
+    for connection in word["connections"]:
+        for the_connection_word in data:
+            if the_connection_word["word"] == word["word"]:
+                matrix_a = np.array(word["position"])
+                matrix_b = np.array(the_connection_word["position"])
+                t = 1 / (1 + math.exp(-connection[1])) # a mathematical function that makes the number between 0 and 1
+                nudged_A_to_B = matrix_a + t * (matrix_b - matrix_a) # a position closer to b depending on t
+                word["position"] = nudged_A_to_B
+        j_connections += 1
+
+print(f"Data positioned: {data}")
 def evaluate_next_word(word):
     current_winner = ["", "", 0]
     for association in weights:
