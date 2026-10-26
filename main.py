@@ -20071,23 +20071,70 @@ for sentence in dataset:
     sentence_index += 1
 
 # nudge position based on connections
-MAX_FREQ = 40 # cap for very common neighbors like "the"
-STEP = 0.01 # biggest pull any single connection can apply
+MAX_FREQ = 40
+STEP = 0.01
+lookup = {entry["word"]: entry for entry in data}
 
-def nudge_all(data, lookup):
+def build_index(data):
+    # neighbor -> {word: frequency}, who points at each neighbor
+    index = {}
+    for entry in data:
+        for neighbor, freq, offsets in entry["connections"]:
+            print("build index working")
+            index.setdefault(neighbor, {})[entry["word"]] = freq
+    return index
+
+def nudge_all(data, lookup, index):
+    moves = {e["word"]: np.zeros(len(e["position"])) for e in data}
+
     for entry in data:
         a = np.array(entry["position"])
-        for neighbor, freq in entry["connections"]:
-            b = np.array(lookup[neighbor]["position"])
-            t = STEP * min(freq, MAX_FREQ) / MAX_FREQ   # between 0 and STEP
-            a = a + t * (b - a)
-        entry["position"] = a
+        for neighbor, freq, offsets in entry["connections"]:
+            sharers = index[neighbor]
+            specificity = 1 / len(sharers)  # fewer words share it = stronger
+            for other_word, other_freq in sharers.items():
+                if other_word == entry["word"]:
+                    continue
+                b = np.array(lookup[other_word]["position"])
+                strength = min(freq, other_freq, MAX_FREQ) / MAX_FREQ
+                t = STEP * strength * specificity
+                moves[other_word] += t * (a - b)  # pull the sharer toward this word
 
+    for entry in data:
+        entry["position"] = np.array(entry["position"]) + moves[entry["word"]]
+
+index = build_index(data)
+for _ in range(50):
+    nudge_all(data, lookup, index)
 
 print(f"Data positioned: {data}")
 
-# def predic
+print("INDEX: ", index)
 
+def predict_next_word(sentence, top=5):
+    words = sentence.lower().split()
+
+    # candidates: words that appeared in a sentence with every context word
+    candidates = set.intersection(*[set(index[w]) for w in words]) - set(words)
+
+    # where the context sits on the map
+    center = np.mean([np.array(lookup[w]["position"]) for w in words], axis=0)
+
+    scored = [(np.linalg.norm(center - np.array(lookup[c]["position"])), c)
+              for c in candidates]
+    return sorted(scored)[:top]
+
+def generate_sentence(sentence, number_of_words):
+    curr_sentence = sentence
+    for _ in range(number_of_words):
+        prediction = predict_next_word(curr_sentence)
+        if not prediction:
+            break
+        best_distance, best_word = prediction[0]
+        curr_sentence = curr_sentence + " " + best_word
+    return curr_sentence
+
+print(generate_sentence("humans like", 5))
 
 
 # input = input("Your words: ")
