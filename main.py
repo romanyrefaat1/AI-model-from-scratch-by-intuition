@@ -20003,25 +20003,65 @@ dataset = [
 
 weights = []
 
+# [[0, 0], [1, 1], [2, 2], [3, 3]]
+    # cats likes    human   animal
+# wrong: becomes
+# [[0, 0], [1, 1], [2, 2], [2.5, 2.5]]
+    # cats likes    human   animal
+
+# data = [{"word": "Animal", "connections": [["WORD", 5, [0,1,-2,3,-1]]], "position": [1, 1]}]
+data = []
+# data= [{word, connections: [word, frequency, [difference indexes in a sentence]], position on map}]
+
+sentence_index = 0
+
 for sentence in dataset:
     i = 0
-    sentence = sentence.lower().split()
-    for word in sentence: # ["Animals", "are", "good"]
-        if (i == len(sentence)-1): # if i is at the current last word
-            break
-        
-        next_word = sentence[i+1]
-        is_updated_weights = False
-        for item in weights:
-            if item[0] == word and item[1] == next_word:
-                item[2] += 1
-                is_updated_weights = True
-                break
-        if not is_updated_weights:
-            weights.append([word, next_word, 1])
-        i += 1
+    words = sentence.lower().split()
 
-print(weights)
+    for word in words:
+        # Check if word already exists in data
+        existing_entry = None
+        for word_in_data in data:
+            if word_in_data["word"] == word:
+                existing_entry = word_in_data
+                break
+
+        if existing_entry is None:
+            appended_data = {
+                "word": word,
+                "connections": [],
+                "position": [[sentence_index, i]]  # Store positions as a list of occurrences
+            }
+            data.append(appended_data)
+        else:
+            appended_data = existing_entry
+            appended_data["position"].append([sentence_index, i])  # Append new occurrence position
+
+        j = 0
+        for w_map in words:
+            # Skip if comparing word at the same index or if comparing identical word strings in the same sentence
+            if j == i:
+                j += 1
+                continue
+
+            is_exists_in_connections = False
+            for connection in appended_data["connections"]:
+                if connection[0] == w_map:
+                    is_exists_in_connections = True
+                    connection[1] += 1
+                    connection[2].append(j - i)
+                    break  # Stop checking after finding the match
+
+            if not is_exists_in_connections:
+                appended_data["connections"].append([w_map, 1, [j - i]])
+            j += 1
+
+        i += 1
+    print(f"sentence finished: {sentence_index}")
+    sentence_index += 1
+
+print("DATA: ", data)
 
 def evaluate_next_word(word):
     current_winner = ["", "", 0]
@@ -20042,6 +20082,6 @@ def predict(sentence, number_of_words):
         print("new_last_word", new_word)
     return curr_sentence
 
-input = input("Your words: ")
+# input = input("Your words: ")
 
-print(predict(input, 10))
+# print(predict(input, 10))
