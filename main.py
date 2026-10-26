@@ -20005,7 +20005,7 @@ import random
 import numpy as np
 import math
 
-DIMS = 10  # the knob: try 2, 10, 50
+DIMS = 10  # the knob: will try 2, 10, 50
 
 def get_random_position(dims=DIMS):
     return [random.uniform(-1, 1) for _ in range(dims)]
@@ -20019,8 +20019,8 @@ weights = []
     # cats likes    human   animal
 
 # data = [{"word": "Animal", "connections": [["WORD", 5, [0,1,-2,3,-1]]], "position": [1, 1]}]
-data = []
 # data= [{word, connections: [word, frequency, [difference indexes in a sentence]], position on map}]
+data = []
 
 sentence_index = 0
 
@@ -20071,39 +20071,24 @@ for sentence in dataset:
     sentence_index += 1
 
 # nudge position based on connections
-set_of_words = {}
+MAX_FREQ = 40 # cap for very common neighbors like "the"
+STEP = 0.01 # biggest pull any single connection can apply
 
-for word in data:
-    j_connections = 0
-    for connection in word["connections"]:
-        for the_connection_word in data:
-            if the_connection_word["word"] == word["word"]:
-                matrix_a = np.array(word["position"])
-                matrix_b = np.array(the_connection_word["position"])
-                t = 1 / (1 + math.exp(-connection[1])) # a mathematical function that makes the number between 0 and 1
-                nudged_A_to_B = matrix_a + t * (matrix_b - matrix_a) # a position closer to b depending on t
-                word["position"] = nudged_A_to_B
-        j_connections += 1
+def nudge_all(data, lookup):
+    for entry in data:
+        a = np.array(entry["position"])
+        for neighbor, freq in entry["connections"]:
+            b = np.array(lookup[neighbor]["position"])
+            t = STEP * min(freq, MAX_FREQ) / MAX_FREQ   # between 0 and STEP
+            a = a + t * (b - a)
+        entry["position"] = a
+
 
 print(f"Data positioned: {data}")
-def evaluate_next_word(word):
-    current_winner = ["", "", 0]
-    for association in weights:
-        if association[0] == word and association[2] > current_winner[2]:
-            current_winner = association
-            print("current_winner:", current_winner)
 
-    return current_winner
+# def predic
 
-def predict(sentence, number_of_words):
-    curr_sentence = sentence
-    for i in range(0, number_of_words):
-        last_word = curr_sentence.split()[-1]
-        print("curr_sentence[-1]:", last_word)
-        new_word = evaluate_next_word(last_word)
-        curr_sentence = curr_sentence + " " + new_word[1]
-        print("new_last_word", new_word)
-    return curr_sentence
+
 
 # input = input("Your words: ")
 
